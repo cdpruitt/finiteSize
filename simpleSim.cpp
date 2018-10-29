@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     int iterations = stoi(argv[1]);
 
     TFile* outputFile = new TFile("output.root", "RECREATE");
-    TH1D* outputCS = new TH1D("outputCS", "outputCS", NUMBER_ANGLE_BINS, LOW_THETA, HIGH_THETA);
+    TH1D* sampledDistribution = new TH1D("sampledDistribution", "sampledDistribution", NUMBER_ANGLE_BINS, LOW_CS_ANGLE, HIGH_CS_ANGLE);
 
     CrossSection crossSection("inputCS.txt");
 
@@ -29,14 +29,14 @@ int main(int argc, char** argv)
     RandomGenerator thetaGen(0, 2*M_PI);
     RandomGenerator lengthGen(-SAMPLE_LENGTH/2, SAMPLE_LENGTH/2);
 
-    RandomGenerator CSThetaGen(LOW_THETA/180, HIGH_THETA/180);
-    RandomGenerator CSPhiGen(-M_PI/2, M_PI/2);
+    RandomGenerator CSThetaGen(MAX_Z/DETECTOR_DISTANCE, -MAX_Z/DETECTOR_DISTANCE);
+    RandomGenerator CSPhiGen(toRadians(LOW_CS_ANGLE), toRadians(HIGH_CS_ANGLE));
 
     RandomGenerator CSSampleGen(0, crossSection.max);
 
     // initialize detectors
     vector<Detector> detectors;
-    for(int i=10; i<180; i+=10)
+    for(int i=10; i<180; i+=3)
     {
         detectors.push_back(Detector(i, DETECTOR_RADIUS, DETECTOR_DISTANCE));
     }
@@ -50,8 +50,12 @@ int main(int argc, char** argv)
             100, 0, M_PI,
             100, 0, 2*M_PI);
 
+    bool hitDet;
+
     for(int i=0; i<iterations; i++)
     {
+        hitDet = false;
+
         // randomly choose a point in the sample volume
         double sampleRadius = radiusGen.getValue();
         double sampleTheta = thetaGen.getValue();
@@ -63,22 +67,21 @@ int main(int argc, char** argv)
                 );
 
         // sample the cross section distribution to create a trajectory
-        double scatteringTheta = -1;
+        double scatteringPhi = -1;
 
         while(true)
         {
-            double tentativeTheta = acos(2*CSThetaGen.getValue()-1);
-
+            double tentativePhi = CSPhiGen.getValue();
             double CSSample = CSSampleGen.getValue();
 
-            if(crossSection.getValue(toDegrees(tentativeTheta))>CSSample)
+            if(crossSection.getValue(toDegrees(tentativePhi))>CSSample)
             {
-                scatteringTheta = tentativeTheta;
+                scatteringPhi = tentativePhi;
                 break;
             }
         }
 
-        double scatteringPhi= CSPhiGen.getValue();
+        double scatteringTheta = acos(CSThetaGen.getValue());
 
         scatteringDirection2D.Fill(scatteringTheta, scatteringPhi);
 
@@ -97,16 +100,13 @@ int main(int argc, char** argv)
         for(auto& detector : detectors)
         {
             Coordinates lineToDetector = detector.origin - scatteringOrigin;
-            Coordinates normalLine = Coordinates(0,0,0) - detector.origin;
+            double scalar = lineToDetector.dot(detector.origin)/scatteringDirection.dot(detector.origin);
 
-            double scalar = lineToDetector.dot(normalLine)/scatteringDirection.dot(normalLine);
-
+            // don't let the particle scatter "backwards"
             if(scalar<0)
             {
                 continue;
             }
-
-            //cout << "scalar = " << scalar << endl;
 
             Coordinates intersectionPoint =
                 scatteringDirection.scale(scalar) + scatteringOrigin;
@@ -130,20 +130,17 @@ int main(int argc, char** argv)
                         );
 
                 detector.counts++;
-            }
 
-            /*if(scatteringTheta-1 < detector.angle && scatteringTheta+1 > detector.angle)
-            {
-                detector.counts++;
-            }*/
+                hitDet = true;
+            }
         }
 
-        outputCS->Fill(toDegrees(scatteringTheta));
+        sampledDistribution->Fill(toDegrees(scatteringPhi));
     }
 
     // normalize output cross section
-    double binSize = (HIGH_THETA-LOW_THETA)/NUMBER_ANGLE_BINS;
-    outputCS->Scale(crossSection.getIntegral()/((double)iterations*binSize));
+    double binSize = (HIGH_CS_ANGLE-LOW_CS_ANGLE)/NUMBER_ANGLE_BINS;
+    sampledDistribution->Scale(crossSection.getIntegral()/((double)iterations*binSize));
 
     TGraphErrors* inputGraph = new TGraphErrors(
             crossSection.data.getNumberOfPoints(),
@@ -159,12 +156,12 @@ int main(int argc, char** argv)
 
     for(int i=1; i<=NUMBER_ANGLE_BINS; i++)
     {
-        xValues.push_back(outputCS->GetBinCenter(i));
-        yValues.push_back(outputCS->GetBinContent(i));
+        xValues.push_back(sampledDistribution->GetBinCenter(i));
+        yValues.push_back(sampledDistribution->GetBinContent(i));
     }
 
     TGraphErrors* outputGraph = new TGraphErrors(xValues.size(), &xValues[0], &yValues[0]);
-    outputGraph->SetNameTitle("outputCS", "outputCS");
+    outputGraph->SetNameTitle("sampledDistribution", "sampledDistribution");
     outputGraph->Write();
 
     // write out detector counts
@@ -175,8 +172,8 @@ int main(int argc, char** argv)
     {
         detectorAngles.push_back(detector.angle);
 
-        double normalizationFactor = crossSection.getIntegral()/((double)iterations*detector.solidAngleFraction);
-        detectorCounts.push_back(detector.counts/normalizationFactor);
+        double normalizationFactor = (crossSection.getIntegral()/(HIGH_CS_ANGLE-LOW_CS_ANGLE))/((double)iterations*detector.solidAngleFraction);
+        detectorCounts.push_back(detector.counts*normalizationFactor);
 
         detector.distanceHisto.Write();
         detector.hitMap.Write();

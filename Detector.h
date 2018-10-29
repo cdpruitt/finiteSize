@@ -18,9 +18,9 @@ class Detector
         Detector(double a, double r, double d):
             angle(a), radius(r), distance(d)
     {
-        origin.x = distance*sin(toRadians(angle));
-        origin.y = 0;
-        origin.z = distance*cos(toRadians(angle));
+        origin.x = distance*cos(toRadians(angle));
+        origin.y = distance*sin(toRadians(angle));
+        origin.z = 0;
 
         solidAngle = 2*M_PI*(1-cos(asin(radius/distance)));
         solidAngleFraction = solidAngle/TOTAL_SOLID_ANGLE;

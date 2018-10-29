@@ -42,7 +42,7 @@
     TFile* outputFile = new TFile(outputFileName.c_str(),"READ");
     
     string inputGraphName = "inputCS";
-    string outputGraphName = "outputCS";
+    string outputGraphName = "sampledDistribution";
     string detectorsGraphName = "detectors";
 
     TGraphErrors* inputGraph = (TGraphErrors*)outputFile->Get(inputGraphName.c_str());
@@ -94,6 +94,8 @@
     mg->GetYaxis()->SetLabelFont(2);
     mg->GetYaxis()->SetNdivisions(10);
     mg->GetYaxis()->SetTickLength(0.02);
+
+    mg->GetYaxis()->SetRangeUser(0,12);
 
     TLegend *legend = new TLegend(0.7,0.7,0.8,0.8);
     legend->SetTextSize(0.03);

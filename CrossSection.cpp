@@ -48,6 +48,12 @@ CrossSection::CrossSection(string inputFileName)
 
 double CrossSection::getValue(double angle)
 {
+    // map angle from 0 to 180 degrees
+    if(angle>180)
+    {
+        angle = 360-angle;
+    }
+
     // linear interpolation to find cross section at angle
     for(int i=1; i<data.getNumberOfPoints(); i++)
     {
