@@ -42,7 +42,7 @@
     TFile* outputFile = new TFile(outputFileName.c_str(),"READ");
     
     string inputGraphName = "inputCS";
-    string outputGraphName = "sampledDistribution";
+    string outputGraphName = "scatteringDistribution";
     string detectorsGraphName = "detectors";
 
     TGraphErrors* inputGraph = (TGraphErrors*)outputFile->Get(inputGraphName.c_str());

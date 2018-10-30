@@ -22,20 +22,20 @@ class Detector
         origin.y = distance*sin(toRadians(angle));
         origin.z = 0;
 
-        solidAngle = 2*M_PI*(1-cos(asin(radius/distance)));
+        solidAngle = 2*M_PI*(1-cos(atan(radius/distance)));
         solidAngleFraction = solidAngle/TOTAL_SOLID_ANGLE;
 
         std::string name = std::to_string(angle);
-        std::string XYProjName = name + "XY";
-        std::string ZYProjName = name + "ZY";
+        std::string XZProjName = name + "XZ";
+        std::string YZProjName = name + "YZ";
         std::string hitMapName = name + "hitMap";
 
         distanceHisto = TH1I(name.c_str(), name.c_str(), 100, 0, radius);
-        XYProj = TH2I(XYProjName.c_str(), XYProjName.c_str(),
+        XZProj = TH2I(XZProjName.c_str(), XZProjName.c_str(),
                 100, -2*radius, 2*radius,
                 100, -2*radius, 2*radius);
 
-        ZYProj = TH2I(ZYProjName.c_str(), ZYProjName.c_str(),
+        YZProj = TH2I(YZProjName.c_str(), YZProjName.c_str(),
                 100, -2*radius, 2*radius,
                 100, -2*radius, 2*radius);
 
@@ -54,8 +54,8 @@ class Detector
         double solidAngleFraction;
 
         TH1I distanceHisto;
-        TH2I XYProj;
-        TH2I ZYProj;
+        TH2I XZProj;
+        TH2I YZProj;
         TH3I hitMap;
 
         int counts = 0;

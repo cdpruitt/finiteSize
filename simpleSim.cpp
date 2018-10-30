@@ -20,17 +20,17 @@ int main(int argc, char** argv)
     int iterations = stoi(argv[1]);
 
     TFile* outputFile = new TFile("output.root", "RECREATE");
-    TH1D* sampledDistribution = new TH1D("sampledDistribution", "sampledDistribution", NUMBER_ANGLE_BINS, LOW_CS_ANGLE, HIGH_CS_ANGLE);
+    TH1D* scatteringDistribution = new TH1D("scatteringDistribution", "scatteringDistribution", NUMBER_ANGLE_BINS, LOW_CS_ANGLE, HIGH_CS_ANGLE);
 
     CrossSection crossSection("inputCS.txt");
 
     // initialize RNGs
-    RandomGenerator radiusGen(0, SAMPLE_RADIUS);
+    RandomGenerator radiusGen(0, pow(SAMPLE_RADIUS,2));
     RandomGenerator thetaGen(0, 2*M_PI);
     RandomGenerator lengthGen(-SAMPLE_LENGTH/2, SAMPLE_LENGTH/2);
 
     RandomGenerator CSThetaGen(MAX_Z/DETECTOR_DISTANCE, -MAX_Z/DETECTOR_DISTANCE);
-    RandomGenerator CSPhiGen(toRadians(LOW_CS_ANGLE), toRadians(HIGH_CS_ANGLE));
+    RandomGenerator CSPhiGen(0, 2*M_PI);
 
     RandomGenerator CSSampleGen(0, crossSection.max);
 
@@ -50,6 +50,11 @@ int main(int argc, char** argv)
             100, 0, M_PI,
             100, 0, 2*M_PI);
 
+    TH3I sampleDistribution("sampleDistribution", "sampleDistribution",
+            100, -SAMPLE_RADIUS, SAMPLE_RADIUS,
+            100, -SAMPLE_RADIUS, SAMPLE_RADIUS,
+            100, -SAMPLE_LENGTH, SAMPLE_LENGTH);
+
     bool hitDet;
 
     for(int i=0; i<iterations; i++)
@@ -57,14 +62,16 @@ int main(int argc, char** argv)
         hitDet = false;
 
         // randomly choose a point in the sample volume
-        double sampleRadius = radiusGen.getValue();
+        double sampleRadius = pow(radiusGen.getValue(),0.5);
         double sampleTheta = thetaGen.getValue();
 
         Coordinates scatteringOrigin(
-                sampleRadius*cos(toRadians(sampleTheta)),
-                sampleRadius*sin(toRadians(sampleTheta)),
+                sampleRadius*cos(sampleTheta),
+                sampleRadius*sin(sampleTheta),
                 lengthGen.getValue()
                 );
+
+        sampleDistribution.Fill(scatteringOrigin.x, scatteringOrigin.y, scatteringOrigin.z);
 
         // sample the cross section distribution to create a trajectory
         double scatteringPhi = -1;
@@ -120,13 +127,13 @@ int main(int argc, char** argv)
                         intersectionPoint.y-detector.origin.y,
                         intersectionPoint.z-detector.origin.z
                         );
-                detector.XYProj.Fill(
+                detector.XZProj.Fill(
                         intersectionPoint.x-detector.origin.x,
-                        intersectionPoint.y-detector.origin.y
+                        intersectionPoint.z-detector.origin.z
                         );
-                detector.ZYProj.Fill(
-                        intersectionPoint.z-detector.origin.z,
-                        intersectionPoint.y-detector.origin.y
+                detector.YZProj.Fill(
+                        intersectionPoint.y-detector.origin.y,
+                        intersectionPoint.z-detector.origin.z
                         );
 
                 detector.counts++;
@@ -135,12 +142,12 @@ int main(int argc, char** argv)
             }
         }
 
-        sampledDistribution->Fill(toDegrees(scatteringPhi));
+        scatteringDistribution->Fill(toDegrees(scatteringPhi));
     }
 
     // normalize output cross section
-    double binSize = (HIGH_CS_ANGLE-LOW_CS_ANGLE)/NUMBER_ANGLE_BINS;
-    sampledDistribution->Scale(crossSection.getIntegral()/((double)iterations*binSize));
+    double binSize = (HIGH_CS_ANGLE-LOW_CS_ANGLE)/(2*NUMBER_ANGLE_BINS);
+    scatteringDistribution->Scale(crossSection.getIntegral()/((double)iterations*binSize));
 
     TGraphErrors* inputGraph = new TGraphErrors(
             crossSection.data.getNumberOfPoints(),
@@ -156,12 +163,12 @@ int main(int argc, char** argv)
 
     for(int i=1; i<=NUMBER_ANGLE_BINS; i++)
     {
-        xValues.push_back(sampledDistribution->GetBinCenter(i));
-        yValues.push_back(sampledDistribution->GetBinContent(i));
+        xValues.push_back(scatteringDistribution->GetBinCenter(i));
+        yValues.push_back(scatteringDistribution->GetBinContent(i));
     }
 
     TGraphErrors* outputGraph = new TGraphErrors(xValues.size(), &xValues[0], &yValues[0]);
-    outputGraph->SetNameTitle("sampledDistribution", "sampledDistribution");
+    outputGraph->SetNameTitle("scatteringDistribution", "scatteringDistribution");
     outputGraph->Write();
 
     // write out detector counts
@@ -172,13 +179,14 @@ int main(int argc, char** argv)
     {
         detectorAngles.push_back(detector.angle);
 
-        double normalizationFactor = (crossSection.getIntegral()/(HIGH_CS_ANGLE-LOW_CS_ANGLE))/((double)iterations*detector.solidAngleFraction);
+        double normalizationFactor = (crossSection.getIntegral()/(HIGH_CS_ANGLE-LOW_CS_ANGLE))
+            /((double)iterations*detector.solidAngleFraction);
         detectorCounts.push_back(detector.counts*normalizationFactor);
 
         detector.distanceHisto.Write();
         detector.hitMap.Write();
-        detector.XYProj.Write();
-        detector.ZYProj.Write();
+        detector.XZProj.Write();
+        detector.YZProj.Write();
     }
 
     TGraphErrors* detectorsGraph = new TGraphErrors(detectorAngles.size(), &detectorAngles[0], &detectorCounts[0]);
@@ -187,6 +195,8 @@ int main(int argc, char** argv)
 
     scatteringDirection2D.Write();
     scatteringDirectionHisto.Write();
+
+    sampleDistribution.Write();
 
     outputFile->Close();
 
