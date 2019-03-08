@@ -36,26 +36,29 @@ int main(int argc, char** argv)
 
     // initialize detectors
     vector<Detector> detectors;
-    for(int i=10; i<180; i+=3)
+    double angleStep = (HIGH_CS_ANGLE-LOW_CS_ANGLE)/(NUMBER_ANGLE_BINS-1);
+    for(double angle=LOW_CS_ANGLE; angle<=HIGH_CS_ANGLE; angle+=angleStep)
     {
-        detectors.push_back(Detector(i, DETECTOR_RADIUS, DETECTOR_DISTANCE));
+        detectors.push_back(Detector(angle, DETECTOR_RADIUS, DETECTOR_DISTANCE));
     }
 
-    TH3I scatteringDirectionHisto("scatteringDirection", "scatteringDirection",
+    TH3D scatteringDirectionHisto("scatteringDirection", "scatteringDirection",
             100, -1, 1,
             100, -1, 1,
             100, -1, 1);
 
-    TH2I scatteringDirection2D("scatteringDirection2D", "scatteringDirection2D",
+    TH2D scatteringDirection2D("scatteringDirection2D", "scatteringDirection2D",
             100, 0, M_PI,
             100, 0, 2*M_PI);
 
-    TH3I sampleDistribution("sampleDistribution", "sampleDistribution",
+    TH3D sampleDistribution("sampleDistribution", "sampleDistribution",
             100, -SAMPLE_RADIUS, SAMPLE_RADIUS,
             100, -SAMPLE_RADIUS, SAMPLE_RADIUS,
             100, -SAMPLE_LENGTH, SAMPLE_LENGTH);
 
     bool hitDet;
+
+    int totalHits = 0;
 
     for(int i=0; i<iterations; i++)
     {
@@ -109,7 +112,7 @@ int main(int argc, char** argv)
             Coordinates lineToDetector = detector.origin - scatteringOrigin;
             double scalar = lineToDetector.dot(detector.origin)/scatteringDirection.dot(detector.origin);
 
-            // don't let the particle scatter "backwards"
+            // ignore particles scattering from 180-360 degrees
             if(scalar<0)
             {
                 continue;
@@ -138,16 +141,24 @@ int main(int argc, char** argv)
 
                 detector.counts++;
 
-                hitDet = true;
+                totalHits++;
+                //scatteringDistribution->Fill(detector.angle);
             }
         }
 
         scatteringDistribution->Fill(toDegrees(scatteringPhi));
+
+        if(i%10000==0)
+        {
+            cout << "Iteration " << i << "/" << iterations << "\r";
+            fflush(stdout);
+        }
     }
 
     // normalize output cross section
     double binSize = (HIGH_CS_ANGLE-LOW_CS_ANGLE)/(2*NUMBER_ANGLE_BINS);
     scatteringDistribution->Scale(crossSection.getIntegral()/((double)iterations*binSize));
+    //scatteringDistribution->Scale(crossSection.getIntegral()/((double)totalHits*binSize));
 
     TGraphErrors* inputGraph = new TGraphErrors(
             crossSection.data.getNumberOfPoints(),

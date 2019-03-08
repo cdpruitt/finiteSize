@@ -4,8 +4,8 @@
 #include <cmath>
 
 // sample characteristics
-const double SAMPLE_RADIUS = 0.412; // in cm
-const double SAMPLE_LENGTH = 1.3; // in cm
+const double SAMPLE_RADIUS = 10*0.412; // in cm
+const double SAMPLE_LENGTH = 10*1.30; // in cm
 
 // detector characteristics
 const double DETECTOR_RADIUS = 5; // in cm

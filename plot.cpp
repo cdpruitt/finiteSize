@@ -37,34 +37,56 @@
     gPad->SetBottomMargin(0.15);
     gPad->SetTicky(2);
 
-    string outputFileName = "output.root";
+    string outputFile1XName = "output1X.root";
+    string outputFile2XName = "output2X.root";
+    string outputFile10XName = "output10X.root";
 
-    TFile* outputFile = new TFile(outputFileName.c_str(),"READ");
-    
+    TFile* outputFile1X = new TFile(outputFile1XName.c_str(),"READ");
+    TFile* outputFile2X = new TFile(outputFile2XName.c_str(),"READ");
+    TFile* outputFile10X = new TFile(outputFile10XName.c_str(),"READ");
+
     string inputGraphName = "inputCS";
     string outputGraphName = "scatteringDistribution";
+
     string detectorsGraphName = "detectors";
 
-    TGraphErrors* inputGraph = (TGraphErrors*)outputFile->Get(inputGraphName.c_str());
-    TGraphErrors* outputGraph = (TGraphErrors*)outputFile->Get(outputGraphName.c_str());
-    TGraphErrors* detectorsGraph = (TGraphErrors*)outputFile->Get(detectorsGraphName.c_str());
+    TGraphErrors* inputGraph = (TGraphErrors*)outputFile1X->Get(inputGraphName.c_str());
+    TGraphErrors* outputGraph = (TGraphErrors*)outputFile1X->Get(outputGraphName.c_str());
+    TGraphErrors* detectors1XGraph = (TGraphErrors*)outputFile1X->Get(detectorsGraphName.c_str());
+    TGraphErrors* detectors2XGraph = (TGraphErrors*)outputFile2X->Get(detectorsGraphName.c_str());
+    TGraphErrors* detectors10XGraph = (TGraphErrors*)outputFile10X->Get(detectorsGraphName.c_str());
 
-    inputGraph->SetLineWidth(2);
-    inputGraph->SetLineColor(kBlue);
+
+    //inputGraph->SetLineWidth(2);
+    //inputGraph->SetLineColor(kBlue);
+
+    inputGraph->SetMarkerSize(1);
+    inputGraph->SetMarkerStyle(20);
+    inputGraph->SetMarkerColor(kBlack);
 
     outputGraph->SetMarkerSize(1);
     outputGraph->SetMarkerStyle(20);
-    outputGraph->SetMarkerColor(kRed);
+    outputGraph->SetMarkerColor(kBlue);
 
-    detectorsGraph->SetMarkerSize(1);
-    detectorsGraph->SetMarkerStyle(20);
-    detectorsGraph->SetMarkerColor(kOrange);
+    detectors1XGraph->SetMarkerSize(1);
+    detectors1XGraph->SetMarkerStyle(20);
+    detectors1XGraph->SetMarkerColor(kRed-7);
+
+    detectors2XGraph->SetMarkerSize(1);
+    detectors2XGraph->SetMarkerStyle(20);
+    detectors2XGraph->SetMarkerColor(kRed-3);
+
+    detectors10XGraph->SetMarkerSize(1);
+    detectors10XGraph->SetMarkerStyle(20);
+    detectors10XGraph->SetMarkerColor(kRed+2);
 
     TMultiGraph* mg = new TMultiGraph();
 
-    mg->Add(inputGraph, "l");
+    mg->Add(inputGraph, "p");
     mg->Add(outputGraph, "p");
-    mg->Add(detectorsGraph, "p");
+    mg->Add(detectors1XGraph, "p");
+    mg->Add(detectors2XGraph, "p");
+    mg->Add(detectors10XGraph, "p");
 
     mg->Draw("a");
 
@@ -95,13 +117,15 @@
     mg->GetYaxis()->SetNdivisions(10);
     mg->GetYaxis()->SetTickLength(0.02);
 
-    mg->GetYaxis()->SetRangeUser(0,12);
+    mg->GetYaxis()->SetRangeUser(0,50);
 
     TLegend *legend = new TLegend(0.7,0.7,0.8,0.8);
     legend->SetTextSize(0.03);
     legend->AddEntry(inputGraph,"Input CS","l");
     legend->AddEntry(outputGraph,"Output CS","p");
-    legend->AddEntry(detectorsGraph,"Detector CS","p");
+    legend->AddEntry(detectors1XGraph,"Detector CS, 1X","p");
+    legend->AddEntry(detectors2XGraph,"Detector CS, 2X","p");
+    legend->AddEntry(detectors10XGraph,"Detector CS, 10X","p");
 
     legend->Draw();
 
